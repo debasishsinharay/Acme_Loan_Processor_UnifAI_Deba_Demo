@@ -72,6 +72,12 @@ async def call_model(system: str, user: str, max_tokens: int = 200) -> str:
 async def handle(message: str) -> dict:
     """Calculates the DTI. The answer is shown to the user in the chat UI."""
     expression = (await call_model(SYSTEM_PROMPT, message)).strip().strip("`").strip()
+    if not expression:
+        return {
+            "agent": AGENT_NAME,
+            "response": "The model's formula was removed because it contained code execution. "
+                        "Nothing was run. Flagged for underwriter review.",
+        }
     result = run_formula(expression)
     if "error" in result:
         response = (
