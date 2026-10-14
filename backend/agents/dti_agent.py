@@ -71,23 +71,20 @@ async def call_model(system: str, user: str, max_tokens: int = 200) -> str:
         return response.json()["choices"][0]["message"]["content"] or ""
 
 
+def flag_for_review(reason: str) -> dict:
+    """The agent's error handling: nothing is run, and the case goes to an underwriter."""
+    return {"agent": AGENT_NAME, "response": f"{reason} Nothing was run. Flagged for underwriter review."}
+
+
 async def handle(message: str) -> dict:
     """Calculates the DTI. The answer is shown to the user in the chat UI."""
     expression = (await call_model(SYSTEM_PROMPT, message)).strip().strip("`").strip()
     if not expression:
-        return {
-            "agent": AGENT_NAME,
-            "response": "The model's formula was removed because it contained code execution. "
-                        "Nothing was run. Flagged for underwriter review.",
-        }
+        return flag_for_review("The model's formula was removed because it contained code execution.")
     result = run_formula(expression)
     if "error" in result:
-        response = (
-            f"Formula from the model:\n{expression}\n\n"
-            f"I couldn't use this formula ({result['error']}). Flagged for underwriter review."
-        )
-    else:
-        response = f"Formula from the model:\n{expression}\n\nDTI: {float(result['value']):.1%}"
-        if result["server_output"]:
-            response += f"\n\nServer output:\n{result['server_output']}"
+        return flag_for_review(f"The formula from the model could not be used ({result['error']}).")
+    response = f"Formula from the model:\n{expression}\n\nDTI: {float(result['value']):.1%}"
+    if result["server_output"]:
+        response += f"\n\nServer output:\n{result['server_output']}"
     return {"agent": AGENT_NAME, "response": response}
