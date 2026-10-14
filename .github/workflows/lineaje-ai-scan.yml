@@ -37,6 +37,11 @@ on:
         type: boolean
         default: false
 
+      mcp_server_url:
+        description: "MCP server URL (blank = Lineaje production)"
+        required: false
+        default: ""
+
 permissions:
   contents: write
   pull-requests: write
@@ -205,12 +210,14 @@ jobs:
           pip install "mcp==1.27.1" httpx
           python -c "import importlib.metadata; print('MCP version:', importlib.metadata.version('mcp'))"
 
-      - name: Test PROD MCP connectivity
+      - name: Test MCP connectivity
+        env:
+          MCP_SERVER_URL: ${{ inputs.mcp_server_url || 'https://mcp.v2.prod.veedna.com/mcp' }}
         run: |
-          curl -4 -sv \
+          curl -4 -skv \
             --connect-timeout 10 \
             --max-time 20 \
-            https://mcp.v2.prod.veedna.com/mcp \
+            "$MCP_SERVER_URL" \
             -o /dev/null || true
 
       - name: Run Lineaje AI policy scan
@@ -222,7 +229,7 @@ jobs:
           # otherwise github.token is sufficient for this repository.
           GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
 
-          MCP_SERVER_URL: https://mcp.v2.prod.veedna.com/mcp
+          MCP_SERVER_URL: ${{ inputs.mcp_server_url || 'https://mcp.v2.prod.veedna.com/mcp' }}
 
           SOURCE_PATH: ${{ steps.subject.outputs.source_path }}
           TARGET_REPO: ${{ steps.resolve.outputs.target_repo }}
