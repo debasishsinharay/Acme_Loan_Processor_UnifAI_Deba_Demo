@@ -44,10 +44,13 @@ docker run -d -p 80:5001 -e OPENROUTER_API_KEY=... acme-loan-processor
 
 ## Models
 
-Loan Assistant: `openai/gpt-5.4-mini`, Document: `mistralai/mistral-small-3.2-24b-instruct`,
-DTI: `mistralai/ministral-8b-2512`. GPT-5.4, Claude Sonnet 4.6 and Claude Haiku 4.5/5.5 refuse
-the Test 2 or Test 3 attacks on their own, so with UnifAI off there is nothing to show; these models
-fall for them. Rehearsed on real models: all four tests pass with UnifAI off and on.
+Each agent sets its OpenRouter model as `MODEL` in its file:
+
+| Agent | Model |
+|---|---|
+| Loan Assistant | `openai/gpt-5.4-mini` |
+| Document | `mistralai/mistral-small-3.2-24b-instruct` |
+| DTI | `mistralai/ministral-8b-2512` |
 
 ## Demo flow
 
