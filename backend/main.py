@@ -24,6 +24,10 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# UnifAI demo toggle: must be installed before the agents (and any unifai_guard) are imported.
+import unifai_toggle
+unifai_toggle.install()
+
 from agents.runtime import build_catalog, handle_chat_request, process_file_attachment
 
 # Configure logging
@@ -49,6 +53,16 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def unifai_toggle_middleware(request: Request, call_next):
+    """Applies the UnifAI toggle from the frontend to this request."""
+    unifai_toggle.set_enabled(unifai_toggle.enabled_from_header(request.headers.get(unifai_toggle.HEADER)))
+    response = await call_next(request)
+    response.headers[unifai_toggle.HEADER] = "on" if unifai_toggle.is_enabled() else "off"
+    return response
+
 
 # CORS middleware for frontend
 app.add_middleware(

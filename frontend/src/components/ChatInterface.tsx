@@ -54,6 +54,8 @@ export function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [showFileUpload, setShowFileUpload] = useState(false)
+  // UnifAI demo toggle: sent to the backend as the X-UnifAI header on every request.
+  const [unifaiOn, setUnifaiOn] = useState(true)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -132,6 +134,7 @@ export function ChatInterface() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-UnifAI': unifaiOn ? 'on' : 'off',
         },
         body: JSON.stringify({
           message: messageText,
@@ -361,7 +364,30 @@ export function ChatInterface() {
               <h1 className="text-lg font-semibold tracking-tight text-slate-50">Acme Loan Processor</h1>
             </div>
           </div>
-          <div className="hidden text-sm text-slate-400 sm:block">Loan assistant</div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={unifaiOn}
+            onClick={() => setUnifaiOn(on => !on)}
+            className="flex items-center gap-3 rounded-full border border-slate-700 bg-slate-900/90 px-3 py-1.5 text-sm text-slate-200 transition hover:border-sky-500/40"
+            title="Turns the UnifAI guards in this app on or off for your next message"
+          >
+            <span className={unifaiOn ? 'text-emerald-300' : 'text-slate-400'}>
+              Secured by UnifAI
+            </span>
+            <span
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                unifaiOn ? 'bg-emerald-500' : 'bg-slate-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  unifaiOn ? 'translate-x-4' : 'translate-x-0.5'
+                }`}
+              />
+            </span>
+            <span className="w-7 text-left text-xs font-semibold">{unifaiOn ? 'ON' : 'OFF'}</span>
+          </button>
         </header>
 
         <div className="chat-scrollbar flex-1 overflow-y-auto px-4 py-5 sm:px-6">
