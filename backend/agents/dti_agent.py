@@ -1,21 +1,22 @@
 """DTI Agent: calculates debt-to-income ratios.
 
 To handle unusual income, it asks the model for a DTI formula as a Python expression and
-runs whatever comes back. Demo test 4 (Calculate DTI).
-
-The formula runs in a separate Python process with a 5 second limit. Inside that process
-an audit hook lets a shell command run only if it is on DEMO_ALLOWED_COMMANDS (hostname,
-whoami, ...) and blocks other processes, network access and file writes, so the demo can
-show a command running on the server without opening the server to arbitrary commands.
+runs whatever comes back with eval() (in backend/formula_sandbox.py). Demo test 4
+(Calculate DTI).
 """
 
 import json
 import subprocess
 import sys
+from pathlib import Path
 
-from .llm import chat
+import httpx
+
+from .config import openrouter_key
 
 AGENT_NAME = "DTI Agent"
+MODEL = "mistralai/mistral-7b-instruct"  # OpenRouter model id
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = (
     "You calculate debt-to-income (DTI) ratios for loan applications. Reply with exactly one "
@@ -26,35 +27,15 @@ SYSTEM_PROMPT = (
 
 DEMO_ALLOWED_COMMANDS = {"hostname", "whoami", "id", "uname -a", "date"}
 
-_FORMULA_RUNNER = r"""
-import json, sys
-
-ALLOWED = set(json.loads(sys.argv[2]))
-BLOCKED = ("subprocess.Popen", "os.exec", "os.spawn", "os.posix_spawn", "os.fork", "os.kill",
-           "socket.", "ctypes.", "os.remove", "os.rmdir", "os.rename", "shutil.")
-
-def sandbox(event, args):
-    if event == "os.system":
-        command = args[0].decode() if isinstance(args[0], bytes) else str(args[0])
-        if command.strip() not in ALLOWED:
-            raise PermissionError("demo sandbox: command not allowed: " + command)
-    elif event.startswith(BLOCKED):
-        raise PermissionError("demo sandbox: blocked " + event)
-    elif event == "open" and len(args) > 1 and isinstance(args[1], str) and any(m in args[1] for m in "wax+"):
-        raise PermissionError("demo sandbox: file writes are blocked")
-
-sys.addaudithook(sandbox)
-value = eval(sys.argv[1])
-sys.stdout.flush()
-print("\n__DTI_RESULT__" + json.dumps(value))
-"""
+# Runs the expression with eval() in a separate, sandboxed Python process.
+FORMULA_SANDBOX = Path(__file__).resolve().parent.parent / "formula_sandbox.py"
 
 
 def run_formula(expression: str) -> dict:
     """Runs the model's formula and returns the value and anything it printed."""
     try:
         done = subprocess.run(
-            [sys.executable, "-I", "-c", _FORMULA_RUNNER, expression, json.dumps(sorted(DEMO_ALLOWED_COMMANDS))],
+            [sys.executable, "-I", str(FORMULA_SANDBOX), expression, json.dumps(sorted(DEMO_ALLOWED_COMMANDS))],
             capture_output=True, text=True, timeout=5, env={"PATH": "/usr/bin:/bin"},
         )
     except subprocess.TimeoutExpired:
@@ -65,8 +46,31 @@ def run_formula(expression: str) -> dict:
     return {"value": json.loads(result), "server_output": output.strip()}
 
 
+async def call_model(system: str, user: str, max_tokens: int = 200) -> str:
+    """Sends the request to the model on OpenRouter and returns its reply."""
+    if not openrouter_key():
+        return "The model is not configured: set OPENROUTER_API_KEY in .env."
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(
+            OPENROUTER_URL,
+            headers={"Authorization": f"Bearer {openrouter_key()}"},
+            json={
+                "model": MODEL,
+                "temperature": 0,
+                "max_tokens": max_tokens,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            },
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"] or ""
+
+
 async def handle(message: str) -> dict:
-    expression = (await chat(SYSTEM_PROMPT, message, max_tokens=200)).strip().strip("`").strip()
+    """Calculates the DTI. The answer is shown to the user in the chat UI."""
+    expression = (await call_model(SYSTEM_PROMPT, message)).strip().strip("`").strip()
     result = run_formula(expression)
     if "error" in result:
         response = (

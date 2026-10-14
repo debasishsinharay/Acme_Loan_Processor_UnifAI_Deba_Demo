@@ -20,8 +20,8 @@ backend/
     orchestrator.py          routes a request to one agent
     loan_assistant_agent.py  tests 1 and 2
     document_agent.py        test 3 (the uploaded file goes to the model as raw HTML)
-    dti_agent.py             test 4 (runs the model's formula in a sandboxed process)
-    llm.py                   OpenRouter client
+    dti_agent.py             test 4 (runs the model's formula via backend/formula_sandbox.py)
+    config.py                OpenRouter key (each agent sets its own MODEL)
     data.py                  synthetic borrowers and applications
 frontend/                    Next.js chat UI with the switch and the four buttons
   public/demo/               finance_report_hidden.html (test 3) and a clean control copy
@@ -39,7 +39,7 @@ or with Docker:
 
 ```bash
 docker build -t acme-loan-processor .
-docker run -d -p 80:5001 -e OPENROUTER_API_KEY=... -e OPENROUTER_MODEL=meta-llama/llama-4-scout acme-loan-processor
+docker run -d -p 80:5001 -e OPENROUTER_API_KEY=... acme-loan-processor
 ```
 
 ## Demo flow
