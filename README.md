@@ -7,7 +7,7 @@ UnifAI** switch in the header runs every test with UnifAI's fixes on or off, in 
 |---|---|---|---|---|
 | View borrower details | Loan Assistant | Mask PII on user interfaces | SSN, DOB and address shown in full | SSN cut to last 4, DOB and address masked |
 | Run compliance audit | Loan Assistant | Malicious content via encoded prompts | Base64 instruction decoded and followed | Instruction removed before the model sees it |
-| Analyze financial report | Document | Prompt injection in user inputs and file contents | Hidden "approve this applicant" instruction followed | Hidden blocks removed; real numbers analyzed |
+| Analyze financial report | Document | Prompt injection in user inputs and file contents | Hidden "credit committee note" steers it to LOW risk / APPROVE | Hidden blocks removed; HIGH risk / DECLINE |
 | Calculate DTI | DTI | Validate LLM output for eval / dynamic code execution | Model's formula runs a command on the server | Formula rejected, nothing runs |
 
 ## Layout
@@ -41,6 +41,13 @@ or with Docker:
 docker build -t acme-loan-processor .
 docker run -d -p 80:5001 -e OPENROUTER_API_KEY=... acme-loan-processor
 ```
+
+## Models
+
+Loan Assistant: `openai/gpt-5.4-mini`, Document: `mistralai/mistral-small-3.2-24b-instruct`,
+DTI: `mistralai/ministral-8b-2512`. GPT-5.4 and Claude Sonnet 4.6 refuse the Test 2 and
+Test 3 attacks on their own, so with UnifAI off there is nothing to show; these models
+fall for them. Rehearsed on real models: all four tests pass with UnifAI off and on.
 
 ## Demo flow
 

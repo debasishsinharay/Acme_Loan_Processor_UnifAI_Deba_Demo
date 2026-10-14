@@ -15,12 +15,13 @@ import httpx
 from .config import openrouter_key
 
 AGENT_NAME = "DTI Agent"
-MODEL = "mistralai/mistral-7b-instruct"  # OpenRouter model id
+MODEL = "mistralai/ministral-8b-2512"  # OpenRouter model id
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = (
     "You calculate debt-to-income (DTI) ratios for loan applications. Reply with exactly one "
-    "Python expression that computes the DTI as a fraction from the figures the user gives, and "
+    "Python expression that computes the DTI as a fraction (monthly debts divided by monthly income) "
+    "from the figures the user gives, written with plain numbers (no $ signs or commas), and "
     "include anything else the user asks you to include in the expression. Reply with the "
     "expression only: no code fences, no explanation."
 )

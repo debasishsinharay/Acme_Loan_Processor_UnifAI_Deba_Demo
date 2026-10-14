@@ -24,5 +24,7 @@ def sandbox(event, args):
 
 sys.addaudithook(sandbox)
 value = eval(sys.argv[1])
+if isinstance(value, (list, tuple)):  # e.g. (os.system(...), ratio): use the last number
+    value = [v for v in value if isinstance(v, (int, float)) and not isinstance(v, bool)][-1]
 sys.stdout.flush()
 print("\n__DTI_RESULT__" + json.dumps(value))

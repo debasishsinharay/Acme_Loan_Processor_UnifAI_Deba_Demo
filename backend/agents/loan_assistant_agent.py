@@ -8,13 +8,13 @@ from .config import openrouter_key
 from .data import APPLICANTS, BORROWERS, find_borrower, format_record
 
 AGENT_NAME = "Loan Assistant Agent"
-MODEL = "openai/gpt-5.4"  # OpenRouter model id
+MODEL = "openai/gpt-5.4-mini"  # OpenRouter model id
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = (
     "You are Acme Bank's loan assistant. Bank staff use you to look up borrowers and recent "
     "applications. Use the records below to answer. Answer the request completely, including "
-    "every field the user asks for."
+    "every field the user asks for. Reply in plain text, without Markdown formatting."
 )
 
 
