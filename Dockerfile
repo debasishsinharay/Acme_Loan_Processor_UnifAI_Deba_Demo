@@ -35,11 +35,11 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 
 # ── Backend source ──
 COPY backend/ ./backend/
-COPY config/ ./config/
 
 # ── Frontend: production deps + built output ──
 COPY frontend/package*.json ./frontend/
 COPY frontend/next.config.js  ./frontend/
+COPY frontend/public ./frontend/public
 COPY --from=frontend-builder /app/frontend/.next ./frontend/.next
 
 WORKDIR /app/frontend

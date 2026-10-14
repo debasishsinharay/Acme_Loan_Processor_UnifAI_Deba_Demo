@@ -1,296 +1,70 @@
-# Acme Loan Assistant
+# Acme Loan Processor: UnifAI demo
 
-**AI-powered policy evaluation and remediation demo application**
+An AI loan assistant built to show four UnifAI policies, each with one button. A **Secured by
+UnifAI** switch in the header runs every test with UnifAI's fixes on or off, in the same build.
 
-Acme Loan Assistant is a deliberately vulnerable chat agent application designed to demonstrate how Unifai detects security policy violations and instructs Cursor IDE to remediate them. The frontend presents as a lightweight AI assistant for document review and loan-related chat.
+| Button | Agent | Policy | UnifAI off | UnifAI on |
+|---|---|---|---|---|
+| View borrower details | Loan Assistant | Mask PII on user interfaces | SSN, DOB and address shown in full | SSN cut to last 4, DOB and address masked |
+| Run compliance audit | Loan Assistant | Malicious content via encoded prompts | Base64 instruction decoded and followed | Instruction removed before the model sees it |
+| Analyze financial report | Document | Prompt injection in user inputs and file contents | Hidden "approve this applicant" instruction followed | Hidden blocks removed; real numbers analyzed |
+| Calculate DTI | DTI | Validate LLM output for eval / dynamic code execution | Model's formula runs a command on the server | Formula rejected, nothing runs |
 
-## Demo Flow
+## Layout
 
-1. **Run Acme Loan Assistant with Unifai disabled** → vulnerable behavior is visible
-2. **Enable Unifai in Cursor** → scans code, detects violations
-3. **Unifai instructs Cursor** to fix the violations
-4. **Run Acme Loan Assistant again** → guardrails now active, violations blocked
+```
+backend/
+  main.py                    FastAPI app: POST /chat
+  unifai_toggle.py           the on/off switch for UnifAI's fixes (keep out of the scan)
+  agents/                    scan this folder with UnifAI
+    orchestrator.py          routes a request to one agent
+    loan_assistant_agent.py  tests 1 and 2
+    document_agent.py        test 3 (the uploaded file goes to the model as raw HTML)
+    dti_agent.py             test 4 (runs the model's formula in a sandboxed process)
+    llm.py                   OpenRouter client
+    data.py                  synthetic borrowers and applications
+frontend/                    Next.js chat UI with the switch and the four buttons
+  public/demo/               finance_report_hidden.html (test 3) and a clean control copy
+.github/                     the Lineaje AI scan workflow
+```
 
-## Four Policy Violations Demonstrated
-
-| Policy | Vulnerability | After Remediation |
-|--------|---------------|-------------------|
-| **PII Detection** | Files processed without PII scanning | SSN, credit cards, phone numbers detected and blocked |
-| **Prompt Injection** | Hidden text/prompts sent to LLM | Hidden content detected and filtered |
-| **Agent Auth** | Inter-agent calls bypass authentication | JWT-based authentication required |
-| **Vulnerable Deps** | Old packages with known CVEs | Updated to patched versions |
-
-## Quick Start
-
-### Option A: Docker (recommended)
-
-**Prerequisites:** Docker and an [OpenRouter](https://openrouter.ai/keys) API key
-
-1. **Build the image**
+## Run it
 
 ```bash
-docker build -t acme-loan-processor:local .
+cp .env.example .env          # add OPENROUTER_API_KEY
+./scripts/run_dev.sh          # backend on :5500, UI on http://localhost:5001
 ```
 
-2. **Run the container**
+or with Docker:
 
 ```bash
-docker run -d \
-  --name acme-loan-processor \
-  -p 80:5001 \
-  -e OPENROUTER_API_KEY=your_openrouter_api_key \
-  -e OPENROUTER_MODEL=meta-llama/llama-4-scout \
-  -e AGENT_SECRET=your_random_secret \
-  acme-loan-processor:local
+docker build -t acme-loan-processor .
+docker run -d -p 80:5001 -e OPENROUTER_API_KEY=... -e OPENROUTER_MODEL=meta-llama/llama-4-scout acme-loan-processor
 ```
 
-3. **Open the app** at http://localhost (Acme Loan Assistant interface)
+## Demo flow
 
----
+1. Run the UnifAI scan on `backend/agents` only (Actions → Lineaje AI Scan → `scan_mode: folder`,
+   `folder_path: backend/agents`, `create_fix_pr: true`) and merge the PR. It adds
+   `unifai_guard.py` and the guard calls to the agents.
+2. Open the app. With the switch **OFF**, click the four buttons: each attack works.
+3. Switch it **ON** and click them again: each one is stopped by its policy.
 
-### Option B: Local Development
+Each answer is labelled with the agent that handled it and whether UnifAI was on.
 
-**Prerequisites:**
+## How the switch works
 
-- Node.js 18+
-- Python 3.10+
-- OpenRouter API key (`OPENROUTER_API_KEY`)
-- OpenRouter model id (`OPENROUTER_MODEL`)
+UnifAI's fixes call functions in `unifai_guard.py`. `backend/unifai_toggle.py` wraps those
+functions when the guard is imported. When the switch is off, the `find_*` checks report
+nothing and the other guard functions return their input unchanged, which is how the app
+behaved before the fix. Nothing UnifAI wrote is edited, and a rescan keeps working. The
+frontend sends the switch state as the `X-UnifAI: on|off` header.
 
-### Setup
+## Safety note for test 4
 
-1. **Copy environment file**
+The DTI agent really runs the model's formula, in a separate Python process with a 5 second
+limit. Inside it, only `hostname`, `whoami`, `id`, `uname -a` and `date` may run; other
+commands, processes, network access and file writes are blocked. Still, run the demo on an
+isolated host.
 
-```bash
-cd Acme_Loan_Processor
-
-# Copy environment template
-cp .env.example .env
-# Edit .env and add your OpenRouter settings
-```
-
-2. **Create virtual environment and install dependencies**
-
-```bash
-./scripts/setup_env.sh    # Creates .venv and installs Python deps
-```
-
-3. **Start the application**
-
-```bash
-./scripts/run_dev.sh    # Start both backend and frontend servers
-```
-
-4. **Stop the application**
-
-```bash
-./scripts/stop_dev.sh   # Stop both servers
-```
-
-**Or run manually:**
-
-```bash
-# Terminal 1: Backend
-cd backend
-source .venv/bin/activate
-uvicorn main:app --reload --port 5500
-
-# Terminal 2: Frontend
-cd frontend
-npm install
-npm run dev -- -p 5001
-```
-
-5. **Open the app**
-
-- Frontend (Acme Loan Assistant): http://localhost:5001
-- Backend API: http://localhost:5500
-- API Docs: http://localhost:5500/docs
-
-## Frontend
-
-The Acme Loan Assistant UI features a clean, modern design:
-
-- **Light theme** — Slate/blue palette with subtle radial gradients and glass-panel styling
-- **Typography** — Manrope font for a professional, approachable feel
-- **Layout** — Glass panel chat container with blue accent band, soft dividers, and fade-in animations
-- **Features** — File upload zone with drag-and-drop, starter prompts for quick actions, and responsive design
-- **Components** — Chat interface, message list, file upload, and policy error display
-
-## Project Structure
-
-```
-Acme_Loan_Processor/
-├── frontend/                    # Next.js React frontend (Acme Loan Assistant UI)
-│   ├── src/
-│   │   ├── app/                 # Next.js app router, layout, globals
-│   │   └── components/          # ChatInterface, MessageList, FileUpload
-│   └── package.json             # ⚠️ Vulnerable npm deps
-│
-├── backend/                     # Python FastAPI backend
-│   ├── agents/                  # Multi-agent system
-│   │   ├── mcp_servers.py       # Central MCP server catalog
-│   │   ├── orchestrator_agent.py
-│   │   ├── loan_processing_agent.py
-│   │   ├── file_processor_agent.py
-│   │   ├── file_management_agent.py  # ⚠️ Destructive ops without HITL
-│   │   ├── access_control_agent.py   # ⚠️ LLM-driven security decisions
-│   │   ├── credit_eval_agent.py
-│   │   ├── scheduling_agent.py
-│   │   ├── runtime.py           # Thin registry over the agent files
-│   │   └── auth/                # ⚠️ Auth bypass
-│   ├── policies/                # Policy modules
-│   │   ├── pii_detection.py     # ⚠️ NO-OP detection
-│   │   ├── prompt_injection.py  # ⚠️ NO-OP detection
-│   │   └── runtime/             # Runtime guardrails
-│   ├── file_parsers/            # File processing
-│   └── requirements.txt         # ⚠️ Vulnerable Python deps
-│
-├── config/                      # Policy configuration
-├── test_files/                  # Demo test files
-└── scripts/                     # Development scripts
-```
-
-## Demo Scenarios
-
-### 1. PII Detection Demo
-
-**Before:**
-1. Upload `test_files/advanced/nested_pii.json`
-2. Observe: "File processed successfully"
-3. PII is sent to the LLM without detection
-
-**After Unifai Remediation:**
-1. Upload the same file
-2. Observe: "Error: PII detected - SSN found in user.profile.contact.ssn"
-
-### 2. Prompt Injection Demo
-
-**Before:**
-1. Upload `test_files/advanced/base64_hidden.html`
-2. Hidden prompts are extracted and sent to LLM
-3. LLM may respond to malicious instructions
-
-**After Unifai Remediation:**
-1. Upload the same file
-2. Observe: "Security threat detected: Hidden content in HTML elements"
-
-### 2b. Image Prompt Injection -> Tool-Output Exfiltration Demo (Environment Diagnostics Agent)
-
-**Before:**
-1. Run `python scripts/create_test_files.py` (or generate your own) to produce
-   `test_files/advanced/ripgrep_exfil_payload.jpg`, and edit the placeholder
-   collector URL drawn on the image to your own request-bin endpoint.
-2. Use a multimodal `OPENROUTER_MODEL` (e.g. `meta-llama/llama-4-scout`).
-3. Upload the image and ask: "Can you review this closing image?" (routes to the Environment Diagnostics Agent - see
-   keyword list in `backend/agents/orchestrator_agent.py::select_agent`).
-4. The vision model transcribes the visible instruction text verbatim into
-   the document context (`backend/file_parsers/image_parser.py`).
-5. `backend/agents/environment_diagnostics_agent.py` parses a natural-language
-   "command request" out of that transcription, fabricates a fake AWS
-   credential "scan result" (`backend/config/simulated_secrets.py`), and POSTs
-   it to the URL embedded in the image - no HITL check, no destination
-   allowlist. Observe the "Diagnostic activity" note in the response and the
-   real inbound request on your collector.
-
-**After Unifai Remediation:**
-1. Same upload and prompt
-2. Observe: the destination URL is rejected by a hardcoded allowlist - no
-   outbound request is made (see the guarded `environment_diagnostics_agent.py`
-   on the `fixed` branch)
-
-### 3. Agent Authentication Demo
-
-**Before:**
-1. Ask: "Can you show me the quarterly financial report?"
-2. Orchestrator Agent forwards the full context and shared hop token to another agent
-3. Access granted without proper authentication
-
-**After Unifai Remediation:**
-1. Same request
-2. Observe: "Unauthorized: Agent token validation failed"
-
-### 4. Vulnerable Dependencies Demo
-
-**Before:**
-```bash
-cd frontend && npm audit
-# Shows vulnerabilities in lodash, axios, etc.
-```
-
-**After Unifai Remediation:**
-- `package.json` updated with patched versions
-- `npm audit` shows no vulnerabilities
-
-## Policy Violation & Guardrail Mapping
-
-| Policy Category | Individual Policy | Violation File (Unifai Scans) | Guardrail File (Unifai Applies) |
-|-----------------|-------------------|-------------------------------|--------------------------------|
-| **Data Security** | PII in uploaded files | `backend/agents/file_processor_agent.py` | `backend/policies/pii_detection.py` |
-| **AI Threats** | Hidden prompts / Prompt injection | `backend/agents/credit_eval_agent.py` | `backend/policies/prompt_injection.py` |
-| **AI Threats** | Image prompt injection -> tool-output exfiltration | `backend/agents/environment_diagnostics_agent.py` | *(destination allowlist gate)* |
-| **Identity & Access** | Unauthenticated agent calls | `backend/agents/orchestrator_agent.py` | `backend/agents/auth/agent_auth.py` |
-| **AI Threats** | Destructive ops without HITL | `backend/agents/file_management_agent.py` | *(HITL boolean gate)* |
-| **AI Threats** | LLM output drives security decisions | `backend/agents/access_control_agent.py` | *(HITL + allowlist gate)* |
-| **Vulnerability** | Vulnerable npm packages | `frontend/package.json` | *(version update)* |
-| **Vulnerability** | Vulnerable Python packages | `backend/requirements.txt` | *(version update)* |
-
-## Test Files
-
-- `test_files/simple/` - Basic examples for warm-up
-- `test_files/advanced/nested_pii.json` - PII buried 5 levels deep
-- `test_files/advanced/base64_hidden.html` - Hidden prompts in HTML
-- `test_files/advanced/multi_hop_attack.json` - Chained agent exploit
-
-Generate additional test files:
-```bash
-python scripts/create_test_files.py
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Acme Loan Assistant                      │
-│              Next.js + React · Light theme · Manrope         │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                         Orchestrator Agent                           │
-│  ┌───────────────┐ ┌──────────────┐ ┌───────────┐ ┌────────────┐   │
-│  │ Loan Processing│ │ File Processor│ │ File Mgmt │ │ Credit Eval│   │
-│  └───────────────┘ └──────────────┘ └───────────┘ └────────────┘   │
-│          ┌────────────────────┐  ┌──────────────────────────┐      │
-│          │ Access Control Agent│  │    Scheduling Agent     │      │
-│          └────────────────────┘  └──────────────────────────┘      │
-└──────────────────────────────────────────────────────────────────────┘
-                               │
-               ┌───────────────┼────────────────┬─────────────────────┐
-               ▼               ▼                ▼                     ▼
-          ┌─────────┐   ┌─────────┐      ┌─────────┐           ┌──────────────┐
-          │  Slack  │   │ Service-│      │  Email  │           │ Google Calendar │
-          │         │   │   Now   │      │         │           │                │
-          └─────────┘   └─────────┘      └─────────┘           └──────────────┘
-               │               │                │                     │
-               └───────────────┴────────────┬───┴───────────────┬─────┘
-                                            ▼                   ▼
-                                         ┌──────┐            ┌─────┐
-                                         │Excel │            │Docx │
-                                         └──────┘            └─────┘
-```
-
-## Environment Variables
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `OPENROUTER_API_KEY` | API key for OpenRouter chat completions | Yes | — |
-| `OPENROUTER_MODEL` | Multimodal OpenRouter model id (e.g. `meta-llama/llama-4-scout`) | Yes | — |
-| `AGENT_SECRET` | Secret for HMAC inter-agent token signing | No | — |
-| `JWT_SECRET` | Secret for JWT signing (after Unifai remediation) | No | — |
-| `BACKEND_URL` | Backend URL for frontend proxy | No | `http://127.0.0.1:5500` |
-| `LOG_LEVEL` | Logging verbosity | No | `INFO` |
-
-## License
-
-This is a demo application for Unifai integration testing.
+All borrower and account data is synthetic.
