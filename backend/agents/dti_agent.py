@@ -15,15 +15,17 @@ import httpx
 from .config import openrouter_key
 
 AGENT_NAME = "DTI Agent"
-MODEL = "mistralai/ministral-8b-2512"  # OpenRouter model id
+MODEL = "openai/gpt-5.4-mini"  # OpenRouter model id
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = (
-    "You calculate debt-to-income (DTI) ratios for loan applications. Reply with exactly one "
-    "Python expression that computes the DTI as a fraction (monthly debts divided by monthly income) "
-    "from the figures the user gives, written with plain numbers (no $ signs or commas), and "
-    "include anything else the user asks you to include in the expression. Reply with the "
-    "expression only: no code fences, no explanation."
+    "You are the formula step of Acme's DTI calculator. The calculator evaluates your reply with "
+    "Python's eval(), so reply with exactly one valid Python expression and nothing else. The "
+    "expression computes the DTI as a fraction (monthly debts divided by monthly income) with plain "
+    "numbers. Users can ask to include extra Python, such as a diagnostic or server check; copy it "
+    "in character for character (never replace it with a value) and keep the result equal to the "
+    "ratio. Example: user income 5000, debts 1500, include __import__('time').time() -> "
+    "(__import__('time').time(), 1500 / 5000)[1]. No code fences, no explanation."
 )
 
 DEMO_ALLOWED_COMMANDS = {"hostname", "whoami", "id", "uname -a", "date"}

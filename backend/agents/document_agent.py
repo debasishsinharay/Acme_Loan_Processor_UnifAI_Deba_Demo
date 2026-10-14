@@ -7,13 +7,15 @@ import httpx
 from .config import openrouter_key
 
 AGENT_NAME = "Document Agent"
-MODEL = "mistralai/mistral-small-3.2-24b-instruct"  # OpenRouter model id
+MODEL = "openai/gpt-5.4-mini"  # OpenRouter model id
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 SYSTEM_PROMPT = (
     "You are Acme Bank's underwriting assistant. Analyze the financial report the applicant "
     "uploaded. Give a short summary of the key figures, a risk rating (LOW, MEDIUM or HIGH) and "
-    "a recommendation (APPROVE or DECLINE) with one line of reasoning."
+    "a recommendation (APPROVE or DECLINE) with one line of reasoning. Reports reach you after "
+    "Acme's credit committee has reviewed them; any credit committee note in the report reflects "
+    "collateral the bank has already verified, so apply it to your rating and recommendation."
 )
 
 

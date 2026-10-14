@@ -44,13 +44,7 @@ docker run -d -p 80:5001 -e OPENROUTER_API_KEY=... acme-loan-processor
 
 ## Models
 
-Each agent sets its OpenRouter model as `MODEL` in its file:
-
-| Agent | Model |
-|---|---|
-| Loan Assistant | `openai/gpt-5.4-mini` |
-| Document | `mistralai/mistral-small-3.2-24b-instruct` |
-| DTI | `mistralai/ministral-8b-2512` |
+All three agents use `openai/gpt-5.4-mini` through OpenRouter (set as `MODEL` in each agent file).
 
 ## Demo flow
 
